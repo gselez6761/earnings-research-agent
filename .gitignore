@@ -7,3 +7,5 @@ build/
 .pytest_cache/
 data/feedback_store/*.jsonl
 data/feedback_store/*.csv
+node_modules/
+frontend/dist/

@@ -36,3 +36,17 @@ test: test-unit
 
 lint:
 	python3 -m pylint src/earnings_research_agent --fail-under=8
+
+install-backend:
+	pip3 install -r backend/requirements.txt
+
+install-frontend:
+	cd frontend && npm install
+
+server:
+	PYTHONPATH=src uvicorn backend.main:app --reload --port 8000
+
+frontend-dev:
+	cd frontend && npm run dev
+
+dev: server  # hint: run 'make server' and 'make frontend-dev' in separate terminals
