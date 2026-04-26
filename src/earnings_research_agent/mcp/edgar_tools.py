@@ -41,7 +41,7 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from earnings_research_agent.utils.config import settings
 from earnings_research_agent.utils.exceptions import EdgarMCPError
 from earnings_research_agent.utils.logging import get_logger
-
+from earnings_research_agent.state.graph_state import GraphState
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -201,3 +201,44 @@ async def list_available_tools() -> list[str]:
             await mcp.initialize()
             tools_result = await mcp.list_tools()
             return [t.name for t in tools_result.tools]
+
+
+
+
+async def transcript_mcp_node(state: GraphState) -> dict[str, Any]:
+    """LangGraph Node: Fetch exact financials and diff-based risk disclosures.
+    
+    This executes the parallel read-only tool calls against the EdgarTools 
+    MCP server for the target ticker, utilizing the client functions defined above.
+    """
+    ticker = state["ticker"]
+    logger.info("Executing EdgarTools MCP calls for %s", ticker)
+
+    mcp_data = {}
+
+    try:
+        # Run the I/O bound MCP calls concurrently via asyncio
+        # 1. Fetch exact financials for the last 2 quarters
+        financials_task = get_financial_statements(ticker=ticker, num_periods=2)
+        
+        # 2. Fetch diff-only disclosures to automatically surface material risk factor changes
+        disclosures_task = search_filings(
+            ticker=ticker, 
+            query="material changes in risk factors, business segments, or guidance", 
+            diff_only=True
+        )
+
+        financials, risk_shifts = await asyncio.gather(financials_task, disclosures_task)
+
+        mcp_data["financial_statements"] = financials
+        mcp_data["risk_factor_shifts"] = risk_shifts
+
+    except Exception as e:
+        logger.error("EdgarTools MCP call failed for %s: %s", ticker, e)
+        # Fail open: graph will not halt; agents will rely solely on transcript RAG chunks.
+        mcp_data["financial_statements"] = None
+        mcp_data["risk_factor_shifts"] = None
+
+    # Return the retrieved structured data so it can be passed into the GraphState
+    # and read by the transcript_agent node.
+    return {"mcp_context": mcp_data}
