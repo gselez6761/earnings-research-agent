@@ -41,6 +41,7 @@ class GraphState(MessagesState):
     # ------------------------------------------------------------------
     ticker: str
     thread_id: str
+    grader_mode: str  # "keyword" | "llm"
 
     # ------------------------------------------------------------------
     # Peer selection (set by peer_selector node)

@@ -108,17 +108,28 @@ class SignalCard(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class BeatMiss(str, Enum):
+    BEAT = "beat"
+    MISS = "miss"
+    INLINE = "inline"
+
+
+class MetricItem(BaseModel):
+    """A single financial metric with its YoY change."""
+    label: str
+    value: str       # formatted, e.g. "$187.8B"
+    yoy_change: str  # formatted, e.g. "+9%" or "-3.2%"
+
+
 class ExecutiveSummary(BaseModel):
     """Top-line financial metrics and guidance for the target ticker."""
 
-    total_revenue: str
-    net_income: str
-    operating_margin: str
-    top_growth_segments: list[str] = Field(..., max_length=2)
+    beat_miss: BeatMiss
+    metrics: list[MetricItem]         # 4-5 items: Revenue, Net Income, Op Margin, top segments
     headline_takeaway: str
+    key_drivers: list[str]            # 3-5 short phrases bolded in the frontend
     primary_driver: str
-    forward_guidance: str  # next-quarter targets, CapEx, segment outlook
-    temporal_deltas: list[TemporalDelta]  # Fix 2
+    forward_guidance: str             # comprehensive forward-looking paragraph
 
 
 # ---------------------------------------------------------------------------

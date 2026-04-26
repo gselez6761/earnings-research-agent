@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from earnings_research_agent.mcp.edgar_tools import get_company_facts
 from earnings_research_agent.state.graph_state import GraphState
+from earnings_research_agent.utils.config import settings
 from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
@@ -27,9 +28,7 @@ class PeerSelection(BaseModel):
     """Structured output for peer ticker selection."""
     peers: list[str] = Field(
         ...,
-        min_length=1,
-        max_length=5,
-        description="List of 3-5 peer ticker symbols.",
+        description="List of peer ticker symbols.",
     )
 
 
@@ -53,24 +52,31 @@ async def peer_selector(state: GraphState) -> dict[str, Any]:
             exc,
         )
 
-    system_prompt = """You are an expert equity research analyst.
-    Given a target company and its SEC-reported sector and segment data,
-    identify 3 to 5 of its closest publicly traded US competitors.
+    n = settings.num_peers
+    system_prompt = """You are an equity research assistant. Given a stock ticker, identify the {n} closest publicly traded U.S. peers by business model and industry.
 
-    Selection criteria:
-    - Same primary sector as the target.
-    - Overlap in at least 2 major revenue segments.
-    - Publicly traded on a US exchange.
+Peer Selection Criteria (in order of priority):
 
-    Return ONLY ticker symbols. Do not include the target itself.
+1. Peers must compete directly with the target company in at least 2 major revenue segments. If a candidate company does not share at least 2 core business lines with the target, it is NOT a valid peer.
+2. Peers should be in the same industry or sector. A restaurant chain is not a peer to a tech company. A bank is not a peer to a retailer. An oil company is not a peer to a SaaS platform.
+3. Peers should be comparable in business model — if the target is a platform/marketplace, pick other platforms/marketplaces. If the target is a subscription SaaS company, pick other subscription SaaS companies.
+4. Peers should be similar in scale where possible (large-cap to large-cap, mid-cap to mid-cap), but business model overlap is more important than size.
 
-    SEC company profile for the target:
-    {company_facts}
-    """
+Disqualification Rules:
+- Do NOT pick a company just because it is large or well-known. McDonald's is not a peer to Amazon.
+- Do NOT pick conglomerates or diversified companies unless the target company is one.
+- Do NOT pick companies from a completely different industry even if they share one minor business line (e.g., both having "subscription services" does not make Netflix a peer to Costco).
+- Ask yourself: "Would an equity research analyst at a bank put these two companies in the same coverage universe?" If not, do not select it.
+
+Do not include the target ticker itself. Return exactly {n} tickers.
+
+SEC company profile for the target:
+{company_facts}
+"""
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
-        ("human", "Identify 3-5 peers for {ticker}."),
+        ("human", "Identify the {n} closest peers for {ticker}."),
     ])
 
     chain = prompt | get_llm(role="standard", temperature=0.0).with_structured_output(PeerSelection)
@@ -79,6 +85,7 @@ async def peer_selector(state: GraphState) -> dict[str, Any]:
         result: PeerSelection = chain.invoke({
             "ticker": ticker,
             "company_facts": company_facts_context or "Not available.",
+            "n": n,
         })
     except Exception as e:
         logger.error("Failed to select peers: %s", e)

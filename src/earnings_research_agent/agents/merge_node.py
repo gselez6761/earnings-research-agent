@@ -28,9 +28,8 @@ def merge_node(state: GraphState) -> dict[str, Any]:
     required_keys = [
         "executive_summary",
         "signal_cards",
-        "temporal_deltas",
         "industry_trends",
-        "competitive_table"
+        "competitive_table",
     ]
 
     for key in required_keys:

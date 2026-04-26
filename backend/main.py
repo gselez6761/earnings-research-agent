@@ -91,8 +91,15 @@ def _parse_dollar(s):
 def _parse_growth(s):
     if not s:
         return None
+    s = str(s).strip()
+    # Handle basis points: "200bps" → 2.0 (as percentage points)
+    bps = re.match(r'[+-]?([\d.]+)\s*bps', s, re.IGNORECASE)
+    if bps:
+        return round(float(bps.group(1)) / 100, 2)
+    # Strip common suffixes and signs then parse
+    cleaned = re.sub(r'[%pP]+$', '', s).replace('+', '').replace(',', '').strip()
     try:
-        return float(str(s).strip().replace('%', '').replace('+', ''))
+        return float(cleaned)
     except Exception:
         return None
 
@@ -100,20 +107,11 @@ def _parse_growth(s):
 def transform_report(report: FinalReport) -> dict:
     ex = report.executive_summary
 
-    # Base metrics
+    # metrics array comes directly from the LLM — label/value/yoy_change per item
     metrics = [
-        {"label": "Total Revenue", "value": ex.total_revenue or "N/A"},
-        {"label": "Net Income",    "value": ex.net_income or "N/A"},
-        {"label": "Op. Margin",    "value": ex.operating_margin or "N/A"},
+        {"label": m.label, "value": m.value, "yoy_change": _parse_growth(m.yoy_change)}
+        for m in (ex.metrics or [])
     ]
-    # Add temporal deltas as extra metric cards
-    for delta in (ex.temporal_deltas or [])[:3]:
-        yoy = 1.0 if delta.direction == "up" else (-1.0 if delta.direction == "down" else 0.0)
-        curr = _parse_dollar(delta.current_value)
-        prior = _parse_dollar(delta.prior_value)
-        if curr and prior and prior != 0:
-            yoy = round((curr - prior) / prior * 100, 1)
-        metrics.append({"label": delta.metric, "value": delta.current_value, "yoy_change": yoy})
 
     # Signal cards → key_insights
     key_insights = [
@@ -158,11 +156,12 @@ def transform_report(report: FinalReport) -> dict:
         "ticker": report.ticker,
         "quarter": "",
         "executive_summary": {
+            "beat_miss": ex.beat_miss.value if ex.beat_miss else "",
             "metrics": metrics,
             "headline_takeaway": ex.headline_takeaway or "",
             "primary_driver": ex.primary_driver or "",
             "forward_guidance": ex.forward_guidance or "",
-            "key_drivers": ex.top_growth_segments or [],
+            "key_drivers": ex.key_drivers or [],
         },
         "key_insights": key_insights,
         "industry_trends": {
@@ -192,10 +191,10 @@ node_phases = {
 }
 
 
-async def run_graph_task(session: RunSession, ticker: str) -> None:
+async def run_graph_task(session: RunSession, ticker: str, grader_mode: str = "keyword") -> None:
     graph = get_graph()
     config = {"configurable": {"thread_id": session.thread_id}}
-    initial_state = {"ticker": ticker, "thread_id": session.thread_id}
+    initial_state = {"ticker": ticker, "thread_id": session.thread_id, "grader_mode": grader_mode}
 
     try:
         async for event in graph.astream(initial_state, config=config, stream_mode="updates"):
@@ -256,11 +255,12 @@ async def run_graph_task(session: RunSession, ticker: str) -> None:
 
 
 @app.post("/api/research/{ticker}")
-async def start_research(ticker: str):
+async def start_research(ticker: str, body: dict = None):
     thread_id = str(uuid.uuid4())
     session = RunSession(thread_id=thread_id)
     sessions[thread_id] = session
-    asyncio.create_task(run_graph_task(session, ticker.upper()))
+    grader_mode = (body or {}).get("grader_mode", "keyword")
+    asyncio.create_task(run_graph_task(session, ticker.upper(), grader_mode))
     return {"thread_id": thread_id}
 
 

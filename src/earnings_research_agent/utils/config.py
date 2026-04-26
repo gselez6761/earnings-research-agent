@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     rag_top_k: int = Field(5, alias="RAG_TOP_K")
     rag_max_retrieval_attempts: int = Field(2, alias="RAG_MAX_RETRIEVAL_ATTEMPTS")
+    num_peers: int = Field(3, alias="NUM_PEERS")
 
     # ------------------------------------------------------------------
     # Feedback store path (JSONL file, append-only)

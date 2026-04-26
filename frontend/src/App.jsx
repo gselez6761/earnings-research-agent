@@ -205,6 +205,7 @@ export default function Dashboard() {
   const [threadId, setThreadId] = useState(null);
   const [feedbackNote, setFeedbackNote] = useState("");
   const [feedbackAction, setFeedbackAction] = useState(null); // "approve"|"edit"|"reject"
+  const [graderMode, setGraderMode] = useState("keyword"); // "keyword" | "llm"
   const ref = useRef(null);
   const esRef = useRef(null);
 
@@ -232,7 +233,11 @@ export default function Dashboard() {
     const phaseIv = setInterval(() => { i = Math.min(i + 1, phases.length - 1); setPhase(phases[i]); }, 8000);
 
     try {
-      const res = await fetch(`/api/research/${ticker.trim().toUpperCase()}`, { method: "POST" });
+      const res = await fetch(`/api/research/${ticker.trim().toUpperCase()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grader_mode: graderMode }),
+      });
       if (!res.ok) throw new Error(await res.text());
       const { thread_id } = await res.json();
       setThreadId(thread_id);
@@ -362,6 +367,22 @@ export default function Dashboard() {
                 style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--fg)", fontSize: 16, fontFamily: "var(--mono)", fontWeight: 600, letterSpacing: "3px", width: 0 }}
               />
             </div>
+            {/* Grader mode toggle */}
+            <button
+              onClick={() => setGraderMode(m => m === "keyword" ? "llm" : "keyword")}
+              disabled={loading}
+              title={graderMode === "keyword" ? "Keyword filter (fast, no LLM)" : "LLM grader (semantic, 1 API call)"}
+              style={{
+                height: 38, padding: "0 12px",
+                background: "var(--card)", border: `1px solid ${graderMode === "llm" ? "var(--green)" : "var(--line)"}`,
+                borderRadius: 5, color: graderMode === "llm" ? "var(--green)" : "var(--muted)",
+                fontSize: 10, fontFamily: "var(--mono)", fontWeight: 600,
+                letterSpacing: "0.8px", textTransform: "uppercase",
+                cursor: loading ? "default" : "pointer", flexShrink: 0,
+                transition: "all 0.2s",
+              }}
+            >{graderMode === "llm" ? "⬡ LLM Grader" : "⬡ Keyword"}</button>
+
             <button
               onClick={run}
               disabled={loading}
