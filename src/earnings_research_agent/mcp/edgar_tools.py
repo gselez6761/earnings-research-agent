@@ -216,66 +216,63 @@ async def list_available_tools() -> list[str]:
 
 
 async def transcript_mcp_node(state: GraphState) -> dict[str, Any]:
-    """LangGraph Node: Fetch exact financials and diff-based risk disclosures.
-    
-    This executes the parallel read-only tool calls against the EdgarTools 
-    MCP server for the target ticker, utilizing the client functions defined above.
-    """
+    """LangGraph Node: Fetch exact financials, XBRL segments, and risk disclosures."""
     ticker = state["ticker"]
     logger.info("Executing EdgarTools MCP calls for %s", ticker)
+
+    from earnings_research_agent.tools.xbrl_segments import fetch_xbrl_segments
 
     mcp_data = {}
 
     try:
-        # Run the I/O bound MCP calls concurrently via asyncio
-        # 1. Fetch exact financials for the last 2 quarters
         financials_task = get_financial_statements(ticker=ticker, num_periods=2)
-        
-        # 2. Fetch diff-only disclosures to automatically surface material risk factor changes
         disclosures_task = search_filings(
-            ticker=ticker, 
-            query="material changes in risk factors, business segments, or guidance", 
-            diff_only=True
+            ticker=ticker,
+            query="material changes in risk factors, business segments, or guidance",
+            diff_only=True,
         )
-
         financials, risk_shifts = await asyncio.gather(financials_task, disclosures_task)
-
         mcp_data["financial_statements"] = financials
         mcp_data["risk_factor_shifts"] = risk_shifts
-
     except Exception as e:
         logger.error("EdgarTools MCP call failed for %s: %s", ticker, e)
-        # Fail open: graph will not halt; agents will rely solely on transcript RAG chunks.
         mcp_data["financial_statements"] = None
         mcp_data["risk_factor_shifts"] = None
 
-    # Return the retrieved structured data so it can be passed into the GraphState
-    # and read by the transcript_agent node.
+    # XBRL segment fetch runs synchronously in a thread to avoid blocking the event loop.
+    loop = asyncio.get_event_loop()
+    mcp_data["xbrl_segments"] = await loop.run_in_executor(None, fetch_xbrl_segments, ticker)
+
     return {"mcp_context": mcp_data}
 
 
 async def peer_mcp_node(state: GraphState) -> dict[str, Any]:
-    """LangGraph Node: Fetch financial statements for all peer tickers in parallel.
-
-    Runs one get_financial_statements call per peer concurrently via asyncio.gather.
-    Failures per peer are logged and stored as None — the peer_analysis_node
-    degrades gracefully by falling back to transcript RAG chunks for that peer.
-    """
+    """LangGraph Node: Fetch financial statements and XBRL segments for all peers in parallel."""
     peers = state.get("peers", [])
     logger.info("Fetching MCP financials for %d peers: %s", len(peers), peers)
 
     if not peers:
         return {"peer_mcp_context": {}}
 
-    tasks = [get_financial_statements(ticker=p, num_periods=2) for p in peers]
-    raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+    from earnings_research_agent.tools.xbrl_segments import fetch_xbrl_segments
+
+    mcp_tasks = [get_financial_statements(ticker=p, num_periods=2) for p in peers]
+    raw_results = await asyncio.gather(*mcp_tasks, return_exceptions=True)
+
+    loop = asyncio.get_event_loop()
+    xbrl_tasks = [loop.run_in_executor(None, fetch_xbrl_segments, p) for p in peers]
+    xbrl_results = await asyncio.gather(*xbrl_tasks, return_exceptions=True)
 
     peer_financials: dict[str, Any] = {}
-    for peer, result in zip(peers, raw_results):
-        if isinstance(result, Exception):
-            logger.warning("MCP fetch failed for peer %s: %s", peer, result)
-            peer_financials[peer] = None
+    for peer, fin_result, xbrl_result in zip(peers, raw_results, xbrl_results):
+        if isinstance(fin_result, Exception):
+            logger.warning("MCP fetch failed for peer %s: %s", peer, fin_result)
+            peer_financials[peer] = {"financial_statements": None}
         else:
-            peer_financials[peer] = result
+            peer_financials[peer] = {"financial_statements": fin_result}
+
+        peer_financials[peer]["xbrl_segments"] = (
+            xbrl_result if not isinstance(xbrl_result, Exception) else {}
+        )
 
     return {"peer_mcp_context": peer_financials}
