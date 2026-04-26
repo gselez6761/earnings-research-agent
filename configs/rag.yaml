@@ -1,0 +1,15 @@
+# Agentic RAG configuration
+# These values map to the RAG_* env vars in .env and Settings in utils/config.py
+
+top_k: 10                      # RAG_TOP_K — chunks retrieved per Pinecone query
+max_retrieval_attempts: 2      # RAG_MAX_RETRIEVAL_ATTEMPTS — grader loop limit per branch
+
+# How the loop works:
+# 1. Query Pinecone with top_k results
+# 2. Grade each chunk for relevance (grader.py)
+# 3. If no relevant chunks and attempts < max_retrieval_attempts:
+#    rewrite the query (query_rewriter.py) and retry
+# 4. Pass relevant chunks to the synthesis agent
+#
+# Setting max_retrieval_attempts=1 disables rewriting (single pass).
+# Setting top_k higher increases recall but adds grader LLM calls linearly.

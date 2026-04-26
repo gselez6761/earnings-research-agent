@@ -1,0 +1,18 @@
+# Pinecone vector store configuration
+# Set PINECONE_API_KEY and PINECONE_INDEX in .env
+
+index_name: dbmain             # PINECONE_INDEX env var — must exist before running ingest
+embed_model: text-embedding-3-small   # OPENAI_EMBED_MODEL env var
+embed_dimensions: 1536         # matches text-embedding-3-small output size
+metric: cosine
+
+# Metadata fields stored per vector (set by scripts/ingest_transcripts.py)
+# Used as filter keys in tools/pinecone_tool.py
+metadata_fields:
+  - ticker
+  - quarter
+  - year
+  - date
+  - section      # prepared_remarks | qa
+  - speaker
+  - text

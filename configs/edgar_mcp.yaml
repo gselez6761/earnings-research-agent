@@ -1,0 +1,21 @@
+# EdgarTools MCP server configuration
+# The MCP server is spawned as a subprocess (stdio transport) per call.
+# No port or network config needed — it runs in-process.
+
+# EDGAR_IDENTITY must be "First Last email@example.com"
+# Required by the SEC for fair-access EDGAR scraping.
+# Set in .env as: EDGAR_IDENTITY=Your Name you@email.com
+
+tools_used:
+  - get_financial_statements   # income statement + segments, last N fiscal periods
+  - search_filings             # narrative text search in 10-K / 10-Q
+  - get_company_facts          # sector, industry, segment classification
+
+nodes_that_call_mcp:
+  transcript_mcp_node:
+    - get_financial_statements (target ticker, num_periods=2)
+    - search_filings (diff_only=True — risk factor changes only)
+  peer_mcp_node:
+    - get_financial_statements (all peers, num_periods=2, concurrent)
+  peer_selector:
+    - get_company_facts (target ticker — grounds peer selection prompt)

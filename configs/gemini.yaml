@@ -1,0 +1,9 @@
+# Gemini LLM configuration
+# All values here are overridden by the corresponding env vars in .env
+# GEMINI_MODEL is the only value you'd typically change (e.g. to gemini-2.0-flash).
+
+model: gemini-2.5-flash       # GEMINI_MODEL env var
+temperature_agents: 0.1       # transcript_agent, peer_agent, refine_node
+temperature_grader: 0.0       # grader — deterministic
+temperature_rewriter: 0.2     # query_rewriter — slight creativity for rephrasing
+temperature_selector: 0.0     # peer_selector — deterministic ticker selection

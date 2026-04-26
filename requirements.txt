@@ -1,5 +1,22 @@
-edgartools[ai]
-anthropic[mcp]
-openai
-pinecone
-python-dotenv
+# Core graph runtime
+langgraph>=0.2
+langchain-core>=0.3
+langchain-google-genai>=4.0
+
+# LLM / embedding providers
+openai>=1.0
+
+# Vector store
+pinecone>=3.0
+
+# SEC data via EdgarTools MCP server
+edgartools[ai]>=5.0
+mcp>=1.0
+
+# Settings / env
+pydantic>=2.0
+pydantic-settings>=2.0
+python-dotenv>=1.0
+
+# Transcript ingestion pipeline only
+duckdb>=0.10
