@@ -17,7 +17,7 @@ from earnings_research_agent.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def human_review_node(state: GraphState) -> dict[str, Any]:
+async def human_review_node(state: GraphState) -> dict[str, Any]:
     """Interrupt the graph to allow for human review of the merged report."""
     logger.info("Pausing graph for human review for ticker %s...", state.get("ticker"))
 

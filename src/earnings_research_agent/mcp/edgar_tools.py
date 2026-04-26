@@ -47,8 +47,12 @@ from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Validate EDGAR_IDENTITY at import time — fails fast before any MCP call is made.
-validate_edgar_identity(settings.edgar_identity)
+# Warn at import time if EDGAR_IDENTITY looks wrong; don't crash — the MCP call
+# will surface a clear SEC error if the identity is actually rejected.
+try:
+    validate_edgar_identity(settings.edgar_identity)
+except ValueError as _e:
+    logger.warning("EDGAR_IDENTITY may be malformed: %s", _e)
 
 # ---------------------------------------------------------------------------
 # MCP server process parameters
