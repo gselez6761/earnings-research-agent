@@ -115,7 +115,19 @@ def transform_report(report: FinalReport) -> dict:
 
     # Signal cards → key_insights
     key_insights = [
-        {"signal": c.signal_type.value, "title": c.headline, "detail": c.detail}
+        {
+            "signal": c.signal_type.value,
+            "title": c.headline,
+            "detail": c.detail,
+            "citation": {
+                "chunk_id": c.citation.chunk_id,
+                "ticker": c.citation.ticker,
+                "quarter": c.citation.quarter,
+                "year": c.citation.year,
+                "section": c.citation.section.value,
+                "speaker": c.citation.speaker,
+            },
+        }
         for c in (report.signal_cards or [])
     ]
 

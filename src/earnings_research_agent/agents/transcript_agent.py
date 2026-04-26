@@ -34,6 +34,10 @@ def transcript_agent(state: GraphState) -> dict[str, Any]:
 
     chunk_context = "\n".join(
         f"Chunk ID: {c.get('id', 'unknown')}\n"
+        f"Ticker: {c.get('ticker', ticker)}\n"
+        f"Quarter: {c.get('quarter', 'unknown')}\n"
+        f"Year: {c.get('year', 'unknown')}\n"
+        f"Section: {c.get('section', 'unknown')}\n"
         f"Speaker: {c.get('speaker', 'unknown')}\n"
         f"Text: {c.get('text', '')}\n---"
         for c in chunks if isinstance(c, dict)
@@ -86,7 +90,13 @@ Extract 4-6 key signals from the earnings call. Each signal needs:
 - signal_type: "bullish", "bearish", or "neutral"
 - headline: short descriptive title (5-8 words, max 120 chars)
 - detail: 2-3 sentences with specific numbers, percentages, product names, or speaker attribution. Synthesize in your own analytical voice.
-- citation: must reference the exact chunk_id from the transcript chunks above
+- citation: a structured source reference. Populate ALL fields from the chunk header above:
+    - chunk_id: the exact Chunk ID string from the chunk header
+    - ticker: the Ticker field from the chunk header
+    - quarter: the Quarter field (e.g. "Q4")
+    - year: the Year field (e.g. "2025")
+    - section: the Section field — either "prepared_remarks" or "qa"
+    - speaker: the Speaker field (normalised snake_case name)
 
 Include a mix of bullish and bearish signals. At minimum one bearish signal — every company has risks. If analysts pushed back on something in Q&A, that is likely bearish. If management hedged or deflected, flag it.
 
