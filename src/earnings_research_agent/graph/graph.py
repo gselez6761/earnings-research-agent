@@ -88,5 +88,11 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> StateGraph:
     # If edited, loop back to human review for final approval
     builder.add_edge("refine_node", "human_review_node")
 
-    # Compile the graph with checkpointer
-    return builder.compile(checkpointer=checkpointer)
+    # Compile the graph with checkpointer.
+    # interrupt_before pauses before human_review_node so the backend can
+    # inject human_feedback via update_state() and resume — avoids calling
+    # interrupt() inside the node which requires a runnable context.
+    return builder.compile(
+        checkpointer=checkpointer,
+        interrupt_before=["human_review_node"],
+    )

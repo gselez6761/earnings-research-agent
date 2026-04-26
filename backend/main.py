@@ -20,8 +20,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
-from langgraph.types import Command
-
 from earnings_research_agent.graph.graph import build_graph
 from earnings_research_agent.graph.checkpointer import get_checkpointer
 from earnings_research_agent.state.schemas import (
@@ -206,7 +204,9 @@ async def run_graph_task(session: RunSession, ticker: str) -> None:
                 if phase:
                     await session.event_queue.put({"type": "status", "phase": phase})
 
-        # Loop to handle edit cycles (graph may interrupt multiple times)
+        # Loop to handle edit cycles. The graph uses interrupt_before=["human_review_node"],
+        # so it pauses before that node. We inject feedback via update_state(), then
+        # resume by passing None as input — avoids interrupt()/get_config() entirely.
         while True:
             state = graph.get_state(config)
             if not (state.next and "human_review_node" in state.next):
@@ -221,9 +221,10 @@ async def run_graph_task(session: RunSession, ticker: str) -> None:
             # Wait for human feedback
             feedback = await session.feedback_queue.get()
 
-            # Resume graph
+            # Inject feedback into graph state, then resume from the interrupt point
+            graph.update_state(config, {"human_feedback": feedback})
             async for event in graph.astream(
-                Command(resume=feedback), config=config, stream_mode="updates"
+                None, config=config, stream_mode="updates"
             ):
                 for node_name in event:
                     phase = node_phases.get(node_name)

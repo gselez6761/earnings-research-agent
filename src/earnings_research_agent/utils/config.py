@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     pinecone_index: str = Field("earnings-research-agent", alias="PINECONE_INDEX")
 
     # ------------------------------------------------------------------
+    # xAI / Grok (primary LLM — falls back to Gemini if absent)
+    # ------------------------------------------------------------------
+    xai_api_key: str = Field("", alias="XAI_API_KEY")
+
+    # ------------------------------------------------------------------
     # EdgarTools MCP server (stdio transport, open-source library)
     # EDGAR_IDENTITY must be "Full Name email@example.com" per SEC rules.
     # ------------------------------------------------------------------
@@ -61,7 +66,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Agentic RAG limits
     # ------------------------------------------------------------------
-    rag_top_k: int = Field(10, alias="RAG_TOP_K")
+    rag_top_k: int = Field(5, alias="RAG_TOP_K")
     rag_max_retrieval_attempts: int = Field(2, alias="RAG_MAX_RETRIEVAL_ATTEMPTS")
 
     # ------------------------------------------------------------------

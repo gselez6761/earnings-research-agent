@@ -13,12 +13,11 @@ import json
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from earnings_research_agent.mcp.edgar_tools import get_company_facts
 from earnings_research_agent.state.graph_state import GraphState
-from earnings_research_agent.utils.config import settings
+from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -74,13 +73,7 @@ async def peer_selector(state: GraphState) -> dict[str, Any]:
         ("human", "Identify 3-5 peers for {ticker}."),
     ])
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.0,
-    ).with_structured_output(PeerSelection)
-
-    chain = prompt | llm
+    chain = prompt | get_llm(role="standard", temperature=0.0).with_structured_output(PeerSelection)
 
     try:
         result: PeerSelection = chain.invoke({

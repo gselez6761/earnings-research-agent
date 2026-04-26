@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 
 from earnings_research_agent.rag.hallucination_checker import check_citations
@@ -19,7 +18,7 @@ from earnings_research_agent.state.schemas import (
     SignalCard,
     TemporalDelta,
 )
-from earnings_research_agent.utils.config import settings
+from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -82,19 +81,11 @@ def transcript_agent(state: GraphState) -> dict[str, Any]:
         ("human", "Generate the structured transcript analysis for {ticker}.")
     ])
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.1  # Low temperature for factual grounding
-    )
-    
-    # Force output to match our Pydantic schemas
-    structured_llm = llm.with_structured_output(TranscriptOutput)
-    chain = prompt | structured_llm
+    chain = prompt | get_llm(role="powerful", temperature=0.1).with_structured_output(TranscriptOutput)
 
     # 3. Invoke Model
     try:
-        logger.info("Calling Gemini API for structured transcript analysis...")
+        logger.info("Calling LLM for structured transcript analysis...")
         result: TranscriptOutput = chain.invoke({
             "ticker": ticker,
             "chunks": chunk_context,

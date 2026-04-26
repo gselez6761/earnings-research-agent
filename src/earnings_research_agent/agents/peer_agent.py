@@ -9,12 +9,11 @@ import json
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 
 from earnings_research_agent.state.graph_state import GraphState
 from earnings_research_agent.state.schemas import CompetitiveRow, IndustryTrend
-from earnings_research_agent.utils.config import settings
+from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -82,17 +81,11 @@ def peer_analysis_node(state: GraphState) -> dict[str, Any]:
         ("human", "Generate the structured peer analysis."),
     ])
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.1,
-    )
-
-    chain = prompt | llm.with_structured_output(PeerOutput)
+    chain = prompt | get_llm(role="powerful", temperature=0.1).with_structured_output(PeerOutput)
 
     # 3. Invoke Model
     try:
-        logger.info("Calling Gemini API for competitive landscape synthesis...")
+        logger.info("Calling LLM for competitive landscape synthesis...")
         result: PeerOutput = chain.invoke({
             "ticker": ticker,
             "peers": ", ".join(peers),

@@ -1,63 +1,46 @@
 """RAG Relevance Grader.
 
-Evaluates retrieved Pinecone chunks to determine if they are relevant
-to the current query. This acts as a filter before passing context to
-the generation agents.
+Uses fast keyword matching instead of per-chunk LLM calls.
+Pinecone already handles semantic relevance; this layer filters out
+chunks that contain none of the query's key terms.
 """
 from __future__ import annotations
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
-from pydantic import BaseModel, Field
-
-from earnings_research_agent.utils.config import settings
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-class ChunkGrade(BaseModel):
-    """Binary score for relevance check on a retrieved chunk."""
-    score: str = Field(
-        description="Relevance score 'yes' or 'no'. 'yes' means it contains useful facts for the query."
-    )
-    reasoning: str = Field(
-        description="A brief, one-sentence explanation for the score."
-    )
+# Financial boilerplate that signals an off-topic chunk
+_BOILERPLATE = {
+    "safe harbor", "forward-looking statements", "risk factors",
+    "legal proceedings", "signature", "exhibit", "pursuant to",
+}
 
-def get_grader() -> ChatGoogleGenerativeAI:
-    """Initialize the LLM specifically for the grading task."""
-    return ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.0, # Strictly deterministic for grading
-    ).with_structured_output(ChunkGrade)
+_FINANCIAL_TERMS = {
+    "revenue", "income", "margin", "growth", "segment", "quarter",
+    "guidance", "eps", "earnings", "operating", "profit", "cash",
+    "capex", "cloud", "aws", "azure", "advertising", "retail",
+}
+
 
 def grade_chunk(query: str, chunk_text: str) -> bool:
-    """Grade a single chunk against the current query."""
-    system_prompt = """You are a strict relevance grader for an equity research RAG system.
-    Your job is to assess if the retrieved document chunk contains ANY information 
-    relevant to the user's query. 
-    
-    If the document contains keywords, metrics, or context related to the query, grade it as 'yes'.
-    If it is generic boilerplate or completely unrelated, grade it as 'no'.
+    """Return True if the chunk is relevant to the query.
+
+    Checks that at least one query keyword appears in the chunk and that
+    the chunk is not pure boilerplate. O(n) string ops — no LLM call.
     """
+    text_lower = chunk_text.lower()
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Query: {query}\n\nDocument Chunk: {chunk}")
-    ])
+    # Reject obvious boilerplate if it has none of the financial terms
+    if any(b in text_lower for b in _BOILERPLATE):
+        if not any(t in text_lower for t in _FINANCIAL_TERMS):
+            logger.debug("Chunk rejected as boilerplate.")
+            return False
 
-    chain = prompt | get_grader()
-
-    try:
-        result: ChunkGrade = chain.invoke({"query": query, "chunk": chunk_text})
-        is_relevant = result.score.lower() == "yes"
-        
-        if not is_relevant:
-            logger.debug("Chunk rejected. Reasoning: %s", result.reasoning)
-            
-        return is_relevant
-    except Exception as e:
-        logger.error("Grader failed to evaluate chunk: %s", e)
-        # Fail open: if the grader breaks, keep the chunk rather than losing data
+    # Accept if any query token (length > 3) appears in the chunk
+    query_tokens = [t.lower() for t in query.split() if len(t) > 3]
+    if any(tok in text_lower for tok in query_tokens):
         return True
+
+    # Accept if the chunk contains common financial terms
+    return any(t in text_lower for t in _FINANCIAL_TERMS)

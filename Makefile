@@ -44,7 +44,7 @@ install-frontend:
 	cd frontend && npm install
 
 server:
-	PYTHONPATH=src uvicorn backend.main:app --reload --port 8000
+	PYTHONPATH=src python3 -m uvicorn backend.main:app --reload --port 8000
 
 frontend-dev:
 	cd frontend && npm run dev

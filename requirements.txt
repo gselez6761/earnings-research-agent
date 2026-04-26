@@ -2,6 +2,7 @@
 langgraph>=0.2
 langchain-core>=0.3
 langchain-google-genai>=4.0
+langchain-openai>=0.2
 
 # LLM / embedding providers
 openai>=1.0

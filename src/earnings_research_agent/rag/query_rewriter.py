@@ -6,10 +6,9 @@ the search query to improve Pinecone vector recall on the second pass.
 from __future__ import annotations
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-from earnings_research_agent.utils.config import settings
+from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -41,13 +40,7 @@ def rewrite_query(original_query: str) -> str:
         ("human", "Original Query: {query}")
     ])
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.2, 
-    )
-    
-    structured_llm = llm.with_structured_output(RewrittenQuery)
+    structured_llm = get_llm(role="fast", temperature=0.2).with_structured_output(RewrittenQuery)
     chain = prompt | structured_llm
 
     try:

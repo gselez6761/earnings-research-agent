@@ -10,11 +10,10 @@ import json
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from earnings_research_agent.state.graph_state import GraphState
 from earnings_research_agent.state.schemas import FinalReport
-from earnings_research_agent.utils.config import settings
+from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -76,13 +75,7 @@ def refine_node(state: GraphState) -> dict[str, Any]:
         ("human", "Original report:\n{report}\n\nCorrections to apply:\n{edits}"),
     ])
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key,
-        temperature=0.0,
-    ).with_structured_output(FinalReport)
-
-    chain = prompt | llm
+    chain = prompt | get_llm(role="standard", temperature=0.0).with_structured_output(FinalReport)
 
     try:
         refined: FinalReport = chain.invoke({
