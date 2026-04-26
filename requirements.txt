@@ -1,3 +1,5 @@
 edgartools[ai]
-anthropic
+anthropic[mcp]
+openai
+pinecone
 python-dotenv
