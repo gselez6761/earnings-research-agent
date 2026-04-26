@@ -80,9 +80,47 @@ def fetch_xbrl_segments(ticker: str) -> dict[str, Any]:
         period_current = curr_col.split(" ")[0]
         period_prior = prior_col.split(" ")[0]
 
+        # Key top-level income statement labels to always extract
+        _TOP_LABELS = {
+            "total net sales": "Total Revenue",
+            "net sales": "Total Revenue",
+            "total revenue": "Total Revenue",
+            "revenues": "Total Revenue",
+            "operating income": "Operating Income",
+            "operating income (loss)": "Operating Income",
+            "net income": "Net Income",
+            "net income (loss)": "Net Income",
+            "income before income taxes": "Income Before Tax",
+            "provision for income taxes": "Income Tax",
+        }
+
+        top_df = df[df["dimension"] == False].copy()
+        income_metrics: dict[str, dict] = {}
+        for _, row in top_df.iterrows():
+            label_raw = str(row.get("label", "")).strip().lower()
+            canonical = _TOP_LABELS.get(label_raw)
+            if not canonical or canonical in income_metrics:
+                continue
+            curr = _safe_float(row.get(curr_col))
+            prior = _safe_float(row.get(prior_col))
+            if curr is None:
+                continue
+            yoy: str
+            if prior and prior != 0:
+                pct = (curr - prior) / abs(prior) * 100
+                yoy = f"{'+' if pct >= 0 else ''}{pct:.1f}%"
+            else:
+                yoy = "No Data"
+            income_metrics[canonical] = {
+                "revenue_current": _fmt_billions(curr),
+                "revenue_prior": _fmt_billions(prior) if prior else "No Data",
+                "yoy_growth": yoy,
+            }
+
         result: dict[str, Any] = {
             "period_current": period_current,
             "period_prior": period_prior,
+            "income_metrics": income_metrics,
             "business_segments": {},
             "product_segments": {},
         }

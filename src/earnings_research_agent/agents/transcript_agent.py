@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from earnings_research_agent.rag.hallucination_checker import check_citations
 from earnings_research_agent.state.graph_state import GraphState
-from earnings_research_agent.state.schemas import ExecutiveSummary, SignalCard
+from earnings_research_agent.state.schemas import ExecutiveSummary, SignalCard, TemporalDelta
 from earnings_research_agent.utils.llm import get_llm
 from earnings_research_agent.utils.logging import get_logger
 
@@ -20,6 +20,7 @@ class TranscriptOutput(BaseModel):
     """LLM output before hallucination filtering."""
     executive_summary: ExecutiveSummary
     signal_cards: list[SignalCard]
+    temporal_deltas: list[TemporalDelta]
 
 
 def transcript_agent(state: GraphState) -> dict[str, Any]:
@@ -50,7 +51,11 @@ def transcript_agent(state: GraphState) -> dict[str, Any]:
     # Append XBRL segment revenue so the LLM has exact dollar values per segment
     xbrl = mcp_context.get("xbrl_segments") or {}
     if xbrl:
-        xbrl_lines = [f"\nXBRL Segment Revenue ({xbrl.get('period_current', '')}):"]
+        period = xbrl.get("period_current", "")
+        xbrl_lines = [f"\nXBRL Income Statement ({period}):"]
+        for metric, vals in xbrl.get("income_metrics", {}).items():
+            xbrl_lines.append(f"  {metric}: {vals['revenue_current']} (prior {vals['revenue_prior']}, {vals['yoy_growth']} YoY)")
+        xbrl_lines.append(f"\nXBRL Segment Revenue ({period}):")
         for seg, vals in xbrl.get("business_segments", {}).items():
             xbrl_lines.append(f"  {seg}: {vals['revenue_current']} (prior {vals['revenue_prior']}, {vals['yoy_growth']} YoY)")
         for seg, vals in xbrl.get("product_segments", {}).items():
@@ -111,10 +116,21 @@ Extract 4-6 key signals from the earnings call. Each signal needs:
 
 Include a mix of bullish and bearish signals. At minimum one bearish signal — every company has risks. If analysts pushed back on something in Q&A, that is likely bearish. If management hedged or deflected, flag it.
 
+## Step 3: Produce Temporal Comparison (temporal_deltas)
+Using the XBRL Segment Revenue data above (which contains current period vs prior period figures), extract 4-6 material quarter-over-quarter or year-over-year changes. Also scan the transcript for any explicit management commentary about how results or guidance changed from the prior period (e.g. "compared to last quarter", "vs. a year ago", guidance revisions).
+
+For each delta provide:
+- metric: human-readable name (e.g. "AWS Revenue", "Operating Margin", "Advertising Revenue Growth")
+- current_value: current period value as reported (e.g. "$128.7B" or "11.7%")
+- prior_value: prior period value (e.g. "$107.6B" or "10.2%")
+- direction: "up", "down", or "flat"
+- commentary: one sentence — either a direct quote/paraphrase from management or a statement of the numerical change (e.g. "AWS revenue accelerated from $107.6B to $128.7B, a 19.6% increase reflecting continued enterprise cloud migration.")
+
 Rules:
 - Every field must reference specific numbers, percentages, product names, or named risks. No vague language like "strong performance" without data.
 - metrics array must contain exactly 4-5 items.
 - signal_cards must contain 4-6 items with at least one bearish signal.
+- temporal_deltas must contain 4-6 items drawn from the XBRL data and transcript commentary.
 - The current year is 2026.
 """
 
@@ -144,7 +160,10 @@ Rules:
         suppressed,
     )
 
+    logger.info("Extracted %d temporal deltas.", len(result.temporal_deltas))
+
     return {
         "executive_summary": result.executive_summary,
         "signal_cards": validated_signals,
+        "temporal_deltas": result.temporal_deltas,
     }

@@ -188,6 +188,7 @@ class FinalReport(BaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     executive_summary: ExecutiveSummary
     signal_cards: list[SignalCard]
+    temporal_deltas: list[TemporalDelta] = Field(default_factory=list)
     industry_trends: list[IndustryTrend]  # exactly 3
     competitive_table: list[CompetitiveRow]
 

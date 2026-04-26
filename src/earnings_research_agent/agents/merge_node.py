@@ -28,6 +28,7 @@ def merge_node(state: GraphState) -> dict[str, Any]:
     required_keys = [
         "executive_summary",
         "signal_cards",
+        "temporal_deltas",
         "industry_trends",
         "competitive_table",
     ]
@@ -62,8 +63,9 @@ def merge_node(state: GraphState) -> dict[str, Any]:
         peers=state["peers"],
         executive_summary=state["executive_summary"],
         signal_cards=state["signal_cards"],
+        temporal_deltas=state.get("temporal_deltas") or [],
         industry_trends=state["industry_trends"],
-        competitive_table=filtered_table
+        competitive_table=filtered_table,
     )
 
     logger.info("Merge complete. Final report constructed.")

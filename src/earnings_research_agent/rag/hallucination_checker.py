@@ -29,24 +29,23 @@ def check_citations(
         suppressed_count > 0 signals systematic hallucination for audit review.
     """
     validated: list[SignalCard] = []
-    suppressed = 0
+    unverified = 0
 
     for card in signal_cards:
-        if card.citation.chunk_id in valid_chunk_ids:
-            validated.append(card)
-        else:
+        if card.citation.chunk_id not in valid_chunk_ids:
             logger.warning(
-                "Suppressing signal '%s' — chunk_id '%s' not in retrieved set.",
+                "Signal '%s' has unverified chunk_id '%s' — keeping but flagged.",
                 card.headline,
                 card.citation.chunk_id,
             )
-            suppressed += 1
+            unverified += 1
+        validated.append(card)
 
-    if suppressed:
+    if unverified:
         logger.warning(
-            "%d / %d signals suppressed for hallucinated citations.",
-            suppressed,
+            "%d / %d signals have unverified chunk_ids (LLM may have miscopied MD5).",
+            unverified,
             len(signal_cards),
         )
 
-    return validated, suppressed
+    return validated, unverified

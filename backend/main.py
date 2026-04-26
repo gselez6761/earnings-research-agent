@@ -176,6 +176,16 @@ def transform_report(report: FinalReport) -> dict:
             "key_drivers": ex.key_drivers or [],
         },
         "key_insights": key_insights,
+        "temporal_comparison": [
+            {
+                "metric": d.metric,
+                "current_value": d.current_value,
+                "prior_value": d.prior_value,
+                "direction": d.direction,
+                "commentary": d.commentary,
+            }
+            for d in (report.temporal_deltas or [])
+        ],
         "industry_trends": {
             "themes": themes,
             "sources": [f"{report.ticker} Earnings"] + [f"{p} Earnings" for p in (report.peers or [])[:3]],

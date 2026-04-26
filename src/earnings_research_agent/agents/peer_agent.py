@@ -100,15 +100,21 @@ def peer_analysis_node(state: GraphState) -> dict[str, Any]:
     ## Revenue Data Rules (CRITICAL)
     The financial data below contains XBRL Segment Revenue pulled directly from 10-K filings.
     These are authoritative numbers — use them verbatim for revenue_current, revenue_prior, yoy_growth.
-    - revenue_current / revenue_prior: formatted dollar string e.g. "$128.7B". If unavailable: "No Data"
-    - yoy_growth: signed percentage string e.g. "+19.6%". If unavailable: "No Data"
+    - revenue_current / revenue_prior: formatted dollar string e.g. "$128.7B".
+    - yoy_growth: signed percentage string e.g. "+19.6%".
     - NEVER write: "Not available", "Not specified", "N/A", "Not available from transcript",
-      "Not disclosed", or any descriptive text. Only "No Data" when data is genuinely absent.
+      "Not disclosed", "No Data", or any placeholder text in revenue fields.
 
-    ## Confidence Levels
-    - 'exact': Segment names matched directly (e.g. 'AWS' == 'AWS').
-    - 'inferred': Similar but distinct names mapped (e.g. 'AWS' ~ 'Cloud Services').
-    - 'missing': Data genuinely absent for this company in this segment.
+    ## Confidence Levels — STRICT RULES
+    - 'exact': Segment names matched directly AND revenue figures are available.
+    - 'inferred': Segment names mapped approximately AND revenue figures are available.
+    - 'missing': Revenue data is absent for this company in this segment — use this whenever
+      you cannot find an actual dollar figure. A cell with confidence 'missing' will be
+      hidden from the table. NEVER use 'exact' or 'inferred' when revenue is unknown.
+
+    The rule is simple: if you have the revenue number, use exact or inferred.
+    If you do not have the revenue number, use missing — do not invent a segment name
+    with blank revenue. A missing cell is better than a misleading one.
 
     Transcript Context (all companies):
     {chunk_context}

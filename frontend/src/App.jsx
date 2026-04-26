@@ -367,21 +367,6 @@ export default function Dashboard() {
                 style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--fg)", fontSize: 16, fontFamily: "var(--mono)", fontWeight: 600, letterSpacing: "3px", width: 0 }}
               />
             </div>
-            {/* Grader mode toggle */}
-            <button
-              onClick={() => setGraderMode(m => m === "keyword" ? "llm" : "keyword")}
-              disabled={loading}
-              title={graderMode === "keyword" ? "Keyword filter (fast, no LLM)" : "LLM grader (semantic, 1 API call)"}
-              style={{
-                height: 38, padding: "0 12px",
-                background: "var(--card)", border: `1px solid ${graderMode === "llm" ? "var(--green)" : "var(--line)"}`,
-                borderRadius: 5, color: graderMode === "llm" ? "var(--green)" : "var(--muted)",
-                fontSize: 10, fontFamily: "var(--mono)", fontWeight: 600,
-                letterSpacing: "0.8px", textTransform: "uppercase",
-                cursor: loading ? "default" : "pointer", flexShrink: 0,
-                transition: "all 0.2s",
-              }}
-            >{graderMode === "llm" ? "⬡ LLM Grader" : "⬡ Keyword"}</button>
 
             <button
               onClick={run}
@@ -554,48 +539,12 @@ export default function Dashboard() {
       {data && (
         <div style={{ borderTop: "1px solid var(--line-dim)" }}>
           <div style={{ maxWidth: 1320, margin: "0 auto", padding: "18px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ghost)", letterSpacing: "0.5px" }}>αResearch Terminal — UMD Agentic AI Challenge 2026</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ghost)", letterSpacing: "0.5px" }}>αResearch Terminal</span>
             <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ghost)", letterSpacing: "0.5px" }}>LangGraph · Gemini · EdgarTools MCP</span>
           </div>
         </div>
       )}
 
-      {/* ── Human Feedback Overlay ── */}
-      {reviewReport && (
-        <div style={{
-          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200,
-          background: "rgba(6,6,8,0.97)", backdropFilter: "blur(20px)",
-          borderTop: "1px solid var(--line-b)",
-          padding: "20px 32px",
-        }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--green)", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>Report Ready — Analyst Review</div>
-              <div style={{ fontFamily: "var(--body)", fontSize: 13, color: "var(--muted)" }}>Review the generated report below. Approve to finalise, edit to refine, or reject to discard.</div>
-            </div>
-
-            {/* Note input (shown when editing) */}
-            <input
-              value={feedbackNote}
-              onChange={e => setFeedbackNote(e.target.value)}
-              placeholder="Edit instructions (required for edit)..."
-              style={{
-                flex: "0 1 320px", height: 38, padding: "0 12px",
-                background: "var(--card)", border: "1px solid var(--line-b)",
-                borderRadius: 5, color: "var(--fg)", fontSize: 12,
-                fontFamily: "var(--body)", outline: "none",
-              }}
-            />
-
-            {/* Buttons */}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => submitFeedback("approve")} style={{ height: 38, padding: "0 18px", background: "var(--green)", border: "none", borderRadius: 5, color: "#060608", fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, letterSpacing: "0.8px", cursor: "pointer" }}>✓ Approve</button>
-              <button onClick={() => submitFeedback("edit")} style={{ height: 38, padding: "0 18px", background: "var(--card)", border: "1px solid var(--line-b)", borderRadius: 5, color: "var(--amber)", fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, cursor: "pointer" }}>✎ Edit</button>
-              <button onClick={() => submitFeedback("reject")} style={{ height: 38, padding: "0 18px", background: "var(--card)", border: "1px solid var(--line-b)", borderRadius: 5, color: "var(--red)", fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, cursor: "pointer" }}>✕ Reject</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
