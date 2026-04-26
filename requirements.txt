@@ -1,0 +1,3 @@
+edgartools[ai]
+anthropic
+python-dotenv
