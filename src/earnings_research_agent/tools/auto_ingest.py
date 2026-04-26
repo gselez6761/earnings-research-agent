@@ -141,12 +141,32 @@ def _build_chunks(row) -> list[dict]:
 
     return chunks
 
+_UNICODE_REPLACEMENTS = str.maketrans({
+    "—": "--",   # em dash
+    "–": "-",    # en dash
+    "‘": "'",    # left single quote
+    "’": "'",    # right single quote
+    "“": '"',    # left double quote
+    "”": '"',    # right double quote
+    "…": "...",  # ellipsis
+    " ": " ",    # non-breaking space
+})
+
+
+def _sanitize(text: str) -> str:
+    return text.translate(_UNICODE_REPLACEMENTS).encode("latin-1", errors="replace").decode("latin-1")
+
+
 def _chunk_id(chunk: dict) -> str:
     key = (f"{chunk['ticker']}_{chunk['quarter']}_{chunk['year']}_"
            f"{chunk['section']}_{chunk['speaker']}_{chunk['text'][:64]}")
     return hashlib.md5(key.encode()).hexdigest()
 
 def _upsert_chunks(chunks: list[dict], openai_client: OpenAI, index) -> int:
+    # Sanitize text in-place before embedding or storing as metadata
+    for chunk in chunks:
+        chunk["text"] = _sanitize(chunk["text"])
+
     vectors = []
     for i in range(0, len(chunks), BATCH_SIZE):
         batch = chunks[i:i + BATCH_SIZE]
