@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # Pinecone (transcript vector store)
     # ------------------------------------------------------------------
     pinecone_api_key: str = Field(..., alias="PINECONE_API_KEY")
-    pinecone_index: str = Field("dbmain", alias="PINECONE_INDEX")
+    pinecone_index: str = Field("earnings-research-agent", alias="PINECONE_INDEX")
 
     # ------------------------------------------------------------------
     # EdgarTools MCP server (stdio transport, open-source library)

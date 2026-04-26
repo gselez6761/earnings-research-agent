@@ -15,7 +15,7 @@ The script:
 3. Splits at the prepared-remarks / Q&A boundary.
 4. Chunks to 400-600 tokens per chunk.
 5. Embeds with OpenAI text-embedding-3-small.
-6. Upserts to Pinecone index 'dbmain' with full metadata.
+6. Upserts to Pinecone index 'earnings-research-agent' with full metadata.
 
 Metadata stored per vector:
     ticker, quarter, year, date, section, speaker, text

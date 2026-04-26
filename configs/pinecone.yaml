@@ -1,7 +1,7 @@
 # Pinecone vector store configuration
 # Set PINECONE_API_KEY and PINECONE_INDEX in .env
 
-index_name: dbmain             # PINECONE_INDEX env var — must exist before running ingest
+index_name: earnings-research-agent             # PINECONE_INDEX env var — must exist before running ingest
 embed_model: text-embedding-3-small   # OPENAI_EMBED_MODEL env var
 embed_dimensions: 1536         # matches text-embedding-3-small output size
 metric: cosine

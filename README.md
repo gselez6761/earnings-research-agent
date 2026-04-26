@@ -55,7 +55,7 @@ OPENAI_API_KEY=your-openai-api-key
 
 # Pinecone (transcript vector store)
 PINECONE_API_KEY=your-pinecone-api-key
-PINECONE_INDEX=dbmain           # must match the index you create in step 3
+PINECONE_INDEX=earnings-research-agent           # must match the index you create in step 3
 
 # SEC EDGAR identity — required by SEC for programmatic access
 # Format: "First Last email@example.com"  (include the quotes in the value if your shell needs it)
@@ -88,7 +88,7 @@ EDGAR_IDENTITY=Your Name you@email.com
 
 In the [Pinecone console](https://app.pinecone.io):
 
-1. Create an index named `dbmain` (or whatever you put in `PINECONE_INDEX`).
+1. Create an index named `earnings-research-agent` (or whatever you put in `PINECONE_INDEX`).
 2. Dimensions: **1536** (matches `text-embedding-3-small`).
 3. Metric: **cosine**.
 

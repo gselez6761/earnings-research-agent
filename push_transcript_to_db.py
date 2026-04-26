@@ -230,7 +230,7 @@ from pinecone import Pinecone
 
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-index = pc.Index("dbmain")
+index = pc.Index("earnings-research-agent")
 
 EMBED_MODEL = "text-embedding-3-small"
 BATCH_SIZE = 100
