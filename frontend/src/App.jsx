@@ -68,19 +68,39 @@ function Card({ label, children, accent, style: s }) {
 }
 
 /* ── Signal item (key insights) ── */
-function SignalItem({ signal, title, detail }) {
+function fmtSpeaker(s) {
+  if (!s) return "";
+  return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function fmtSection(s) {
+  if (!s) return "";
+  return s === "qa" ? "Q&A" : s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function SignalItem({ signal, title, detail, citation }) {
   const map = {
     bullish: { bg: "#2dd4a014", color: "#2dd4a0", border: "#2dd4a026", icon: "↑" },
     bearish: { bg: "#ef6b6b14", color: "#ef6b6b", border: "#ef6b6b26", icon: "↓" },
     neutral: { bg: "#6ba3ef14", color: "#6ba3ef", border: "#6ba3ef26", icon: "→" },
   };
   const m = map[signal] || map.neutral;
+  const citationParts = citation ? [
+    citation.quarter && citation.year ? `${citation.quarter} ${citation.year}` : null,
+    fmtSection(citation.section),
+    fmtSpeaker(citation.speaker),
+  ].filter(Boolean) : [];
   return (
     <div style={{ display: "flex", gap: 14, padding: "16px 20px", background: "var(--card)", border: "1px solid var(--line-dim)", borderRadius: 6, marginBottom: 8, alignItems: "flex-start", transition: "border-color 0.25s" }}>
       <div style={{ width: 30, height: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", background: m.bg, color: m.color, border: `1px solid ${m.border}`, fontFamily: "var(--mono)", fontSize: 14, flexShrink: 0, marginTop: 1 }}>{m.icon}</div>
-      <div>
+      <div style={{ flex: 1 }}>
         <div style={{ fontFamily: "var(--body)", fontSize: 13, fontWeight: 600, color: "var(--fg)", marginBottom: 4 }}>{title}</div>
         <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.75, fontFamily: "var(--body)" }}>{detail}</div>
+        {citationParts.length > 0 && (
+          <div style={{ marginTop: 8, fontFamily: "var(--mono)", fontSize: 10, color: "var(--muted)", letterSpacing: "0.6px", textTransform: "uppercase" }}>
+            Source: {citationParts.join(" · ")}
+          </div>
+        )}
       </div>
     </div>
   );
