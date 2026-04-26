@@ -50,8 +50,7 @@ def merge_node(state: GraphState) -> dict[str, Any]:
         
         # If at least 2 companies share the segment, we keep the row
         if len(valid_cells) >= 2:
-            row.cells = valid_cells  # Strip out the missing cells
-            filtered_table.append(row)
+            filtered_table.append(CompetitiveRow(offering_name=row.offering_name, cells=valid_cells))
         else:
             logger.debug(
                 "Suppressing segment row '%s' due to low confidence/missing data.", 

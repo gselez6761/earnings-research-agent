@@ -17,11 +17,11 @@ from pprint import pprint
 # Ensure the src package is importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
+from earnings_research_agent.graph.checkpointer import get_checkpointer
 from earnings_research_agent.graph.graph import build_graph
-from earnings_research_agent.state.schemas import HumanFeedback, FeedbackAction
+from earnings_research_agent.state.schemas import FeedbackAction, HumanFeedback
 from earnings_research_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -31,8 +31,7 @@ def main(ticker: str, thread_id: str) -> None:
     """Execute the LangGraph agent for a given ticker, handling human review."""
     logger.info("Starting research run for %s (Thread: %s)", ticker, thread_id)
 
-    # Initialize checkpointer (MemorySaver for local dev runs)
-    checkpointer = MemorySaver()
+    checkpointer = get_checkpointer()
 
     # Build and compile the graph
     graph = build_graph(checkpointer=checkpointer)

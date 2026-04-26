@@ -62,25 +62,20 @@ def transcript_retriever(state: GraphState) -> dict[str, Any]:
     """RAG node for the main transcript branch."""
     ticker = state["ticker"]
     initial_query = f"{ticker} revenue, operating income, and forward guidance"
-    
     result = _run_agentic_retrieval(ticker, initial_query)
-    
-    # Write directly to GraphState's branch internals
-    return result
+    return {"transcript_chunks": result["retrieved_chunks"]}
+
 
 def peer_retriever(state: GraphState) -> dict[str, Any]:
     """RAG node for the peer branch. Runs the agentic loop for each peer ticker."""
     peers = state.get("peers", [])
-    all_peer_chunks = []
-    
-    # Run the same agentic RAG loop, but for each peer ticker in state.peers
+    all_peer_chunks: list = []
+    max_attempts_seen = 0
+
     for peer in peers:
         initial_query = f"{peer} core business segments, revenue growth, and market trends"
         result = _run_agentic_retrieval(peer, initial_query)
         all_peer_chunks.extend(result["retrieved_chunks"])
-        
-    return {
-        "retrieved_chunks": all_peer_chunks,
-        # We record the max attempts taken across the peer batch for state
-        "retrieval_attempts": settings.rag_max_retrieval_attempts 
-    }
+        max_attempts_seen = max(max_attempts_seen, result["retrieval_attempts"])
+
+    return {"peer_chunks": all_peer_chunks}

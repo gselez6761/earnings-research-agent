@@ -13,7 +13,7 @@ from earnings_research_agent.state.graph_state import GraphState
 # Import nodes (Assuming these will be implemented in their respective files)
 from earnings_research_agent.agents.peer_selector import peer_selector
 from earnings_research_agent.rag.retriever import transcript_retriever, peer_retriever
-from earnings_research_agent.mcp.edgar_tools import transcript_mcp_node
+from earnings_research_agent.mcp.edgar_tools import transcript_mcp_node, peer_mcp_node
 from earnings_research_agent.agents.peer_agent import peer_analysis_node
 from earnings_research_agent.agents.transcript_agent import transcript_agent
 from earnings_research_agent.agents.merge_node import merge_node
@@ -40,6 +40,7 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> StateGraph:
     
     # Peer Branch Nodes
     builder.add_node("peer_retriever", peer_retriever)
+    builder.add_node("peer_mcp_node", peer_mcp_node)
     builder.add_node("peer_analysis_node", peer_analysis_node)
     
     # Merge & Feedback Nodes
@@ -63,7 +64,8 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> StateGraph:
     builder.add_edge("transcript_agent", "merge_node")
 
     # Peer Branch Flow
-    builder.add_edge("peer_retriever", "peer_analysis_node")
+    builder.add_edge("peer_retriever", "peer_mcp_node")
+    builder.add_edge("peer_mcp_node", "peer_analysis_node")
     builder.add_edge("peer_analysis_node", "merge_node")
 
     # The Fan-in / Merge

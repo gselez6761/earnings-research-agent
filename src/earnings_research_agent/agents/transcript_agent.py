@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 
+from earnings_research_agent.rag.hallucination_checker import check_citations
 from earnings_research_agent.state.graph_state import GraphState
 from earnings_research_agent.state.schemas import (
     ExecutiveSummary,
@@ -37,36 +38,43 @@ def transcript_agent(state: GraphState) -> dict[str, Any]:
     logger.info("Running transcript agent for %s", ticker)
 
     # 1. Gather Context
-    # Assume chunks are stored as dicts or objects with an 'id' attribute from the retriever node
-    chunks = state.get("retrieved_chunks", [])
-    
-    # Extract valid chunk IDs for the Fix 1 hallucination check
-    valid_chunk_ids = {
-        c.get("id") if isinstance(c, dict) else getattr(c, "id", None) 
-        for c in chunks
-    }
+    chunks = state.get("transcript_chunks", [])
+    mcp_context = state.get("mcp_context") or {}
 
-    # Format chunks for the LLM prompt
+    # Extract valid chunk IDs for the Fix 1 hallucination check
+    valid_chunk_ids = {c.get("id") for c in chunks if isinstance(c, dict)}
+
     chunk_context = "\n".join(
-        f"Chunk ID: {c.get('id') if isinstance(c, dict) else getattr(c, 'id', 'unknown')}\n"
-        f"Speaker: {c.get('speaker') if isinstance(c, dict) else getattr(c, 'speaker', 'unknown')}\n"
-        f"Text: {c.get('text') if isinstance(c, dict) else getattr(c, 'text', '')}\n---"
+        f"Chunk ID: {c.get('id', 'unknown')}\n"
+        f"Speaker: {c.get('speaker', 'unknown')}\n"
+        f"Text: {c.get('text', '')}\n---"
         for c in chunks
+        if isinstance(c, dict)
     )
+
+    financials_context = ""
+    if mcp_context.get("financial_statements"):
+        import json as _json
+        financials_context = _json.dumps(mcp_context["financial_statements"], indent=2)
+    risk_context = mcp_context.get("risk_factor_shifts", "")
 
     # 2. Build the LLM Chain
     system_prompt = """You are an elite equity research analyst.
     Analyze the provided earnings call transcript chunks and financial data for {ticker}.
-    
+
     You must extract:
-    1. An Executive Summary.
+    1. An Executive Summary grounded in the financial statements below.
     2. Signal Cards (Bullish, Bearish, or Neutral). Every signal MUST cite the exact chunk_id it came from.
-    3. Temporal Deltas comparing current vs. prior quarter metrics.
-    
+    3. Temporal Deltas comparing current vs. prior quarter metrics using the financial statements.
+
     Transcript Chunks:
     {chunks}
-    
-    [Note: MCP Financial Statement Data would be injected here in a full implementation]
+
+    SEC Financial Statements (EdgarTools MCP):
+    {financials}
+
+    Risk Factor Changes (diff vs. prior year):
+    {risk_shifts}
     """
 
     prompt = ChatPromptTemplate.from_messages([
@@ -89,28 +97,21 @@ def transcript_agent(state: GraphState) -> dict[str, Any]:
         logger.info("Calling Gemini API for structured transcript analysis...")
         result: TranscriptOutput = chain.invoke({
             "ticker": ticker,
-            "chunks": chunk_context
+            "chunks": chunk_context,
+            "financials": financials_context,
+            "risk_shifts": risk_context,
         })
     except Exception as e:
         logger.error("Failed to generate transcript output: %s", e)
         raise
 
     # 4. Hallucination Check (Fix 1 Guardrail)
-    validated_signals: list[SignalCard] = []
-    for card in result.signal_cards:
-        if card.citation.chunk_id in valid_chunk_ids:
-            validated_signals.append(card)
-        else:
-            logger.warning(
-                "Suppressing signal '%s' - Invalid or hallucinated chunk_id citation: %s", 
-                card.headline, 
-                card.citation.chunk_id
-            )
-
+    validated_signals, suppressed = check_citations(result.signal_cards, valid_chunk_ids)
     logger.info(
-        "Extracted %d validated signals and %d temporal deltas.",
+        "Extracted %d validated signals (%d suppressed) and %d temporal deltas.",
         len(validated_signals),
-        len(result.temporal_deltas)
+        suppressed,
+        len(result.temporal_deltas),
     )
 
     # 5. Return payload to update GraphState

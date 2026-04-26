@@ -11,7 +11,7 @@ Command(resume=...) is called, this exact state is restored.
 
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 import operator
 
 from langgraph.graph import MessagesState
@@ -48,11 +48,17 @@ class GraphState(MessagesState):
     peers: list[str]
 
     # ------------------------------------------------------------------
-    # Agentic RAG internals
-    # Cleared/reset at the start of each branch; not persisted to report.
+    # Agentic RAG outputs — separate keys per branch so parallel writes
+    # don't collide (no reducer needed; each branch owns its own key).
     # ------------------------------------------------------------------
-    retrieval_attempts: int                  # loop counter, max 2 per branch
-    rewritten_query: Optional[str]           # set if grader rejects first pass
+    transcript_chunks: list[dict[str, Any]]  # written by transcript_retriever
+    peer_chunks: list[dict[str, Any]]        # written by peer_retriever
+
+    # ------------------------------------------------------------------
+    # MCP context — one per branch, set by their respective MCP nodes
+    # ------------------------------------------------------------------
+    mcp_context: Optional[dict[str, Any]]           # transcript branch
+    peer_mcp_context: Optional[dict[str, Any]]      # peer branch: ticker → financials
 
     # ------------------------------------------------------------------
     # Parallel branch outputs

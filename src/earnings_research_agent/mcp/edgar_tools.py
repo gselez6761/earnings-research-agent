@@ -31,6 +31,7 @@ References:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from typing import Any
@@ -38,11 +39,16 @@ from typing import Any
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
+from earnings_research_agent.mcp.auth import validate_edgar_identity
+from earnings_research_agent.state.graph_state import GraphState
 from earnings_research_agent.utils.config import settings
 from earnings_research_agent.utils.exceptions import EdgarMCPError
 from earnings_research_agent.utils.logging import get_logger
-from earnings_research_agent.state.graph_state import GraphState
+
 logger = get_logger(__name__)
+
+# Validate EDGAR_IDENTITY at import time — fails fast before any MCP call is made.
+validate_edgar_identity(settings.edgar_identity)
 
 # ---------------------------------------------------------------------------
 # MCP server process parameters
@@ -242,3 +248,30 @@ async def transcript_mcp_node(state: GraphState) -> dict[str, Any]:
     # Return the retrieved structured data so it can be passed into the GraphState
     # and read by the transcript_agent node.
     return {"mcp_context": mcp_data}
+
+
+async def peer_mcp_node(state: GraphState) -> dict[str, Any]:
+    """LangGraph Node: Fetch financial statements for all peer tickers in parallel.
+
+    Runs one get_financial_statements call per peer concurrently via asyncio.gather.
+    Failures per peer are logged and stored as None — the peer_analysis_node
+    degrades gracefully by falling back to transcript RAG chunks for that peer.
+    """
+    peers = state.get("peers", [])
+    logger.info("Fetching MCP financials for %d peers: %s", len(peers), peers)
+
+    if not peers:
+        return {"peer_mcp_context": {}}
+
+    tasks = [get_financial_statements(ticker=p, num_periods=2) for p in peers]
+    raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    peer_financials: dict[str, Any] = {}
+    for peer, result in zip(peers, raw_results):
+        if isinstance(result, Exception):
+            logger.warning("MCP fetch failed for peer %s: %s", peer, result)
+            peer_financials[peer] = None
+        else:
+            peer_financials[peer] = result
+
+    return {"peer_mcp_context": peer_financials}
