@@ -46,6 +46,17 @@ def transcript_agent(state: GraphState) -> dict[str, Any]:
     financials_context = ""
     if mcp_context.get("financial_statements"):
         financials_context = _json.dumps(mcp_context["financial_statements"], indent=2)
+
+    # Append XBRL segment revenue so the LLM has exact dollar values per segment
+    xbrl = mcp_context.get("xbrl_segments") or {}
+    if xbrl:
+        xbrl_lines = [f"\nXBRL Segment Revenue ({xbrl.get('period_current', '')}):"]
+        for seg, vals in xbrl.get("business_segments", {}).items():
+            xbrl_lines.append(f"  {seg}: {vals['revenue_current']} (prior {vals['revenue_prior']}, {vals['yoy_growth']} YoY)")
+        for seg, vals in xbrl.get("product_segments", {}).items():
+            xbrl_lines.append(f"  {seg}: {vals['revenue_current']} (prior {vals['revenue_prior']}, {vals['yoy_growth']} YoY)")
+        financials_context += "\n".join(xbrl_lines)
+
     risk_context = mcp_context.get("risk_factor_shifts", "")
 
     system_prompt = """You are an equity research transcript analyst. Your job is to analyze a single company's earnings call transcript and produce a structured analysis covering executive summary and key insights.
@@ -75,7 +86,7 @@ From the transcript and financial data, extract:
   2. Net Income — use the net income figure from the financial statements
   3. Operating Margin — calculate from operating income / total revenue, express as a percentage with % symbol (e.g. "8.2%"). For yoy_change, express the change in operating margin as percentage points with a sign (e.g. "+1.5%" means margin expanded 1.5pp, "-0.8%" means it contracted 0.8pp). Never write "bps" or "pp" — always use the % symbol.
   4-5. The two fastest-growing segments — identify which business segments had the highest YoY revenue growth rate (e.g. Advertising Revenue, Cloud Revenue). Label = segment name + " Revenue".
-  For each metric provide: label, value (formatted with $ and B/M), yoy_change as a signed percentage string (e.g. "+17%", "-3.2%", "+1.5%"). yoy_change must always be a number with % — never "N/A", never empty, never qualitative text. Use actual reported figures.
+  For each metric provide: label, value (formatted with $ and B/M), yoy_change as a signed percentage string (e.g. "+17%", "-3.2%", "+1.5%"). Both value AND yoy_change must always be real numbers — never "N/A", "Not Specified", "Not Provided", "Not Available", or any placeholder. If yoy_change is known, value is in the financial data — find it. Use the XBRL Segment Revenue figures above for all segment dollar values.
 
 - headline_takeaway: 2-3 sentence summary. First sentence states the beat/miss result with key numbers. Second sentence identifies the narrative management is pushing. Third sentence names the single biggest risk or concern raised.
 
